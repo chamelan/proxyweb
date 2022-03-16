@@ -1,4 +1,4 @@
-import { io } from "socket.io-client"
+import { io } from "Socket.IO-client"
 import { useEffect } from "react"
 import { useState } from "react"
 
@@ -34,10 +34,6 @@ const Home = () => {
 						y: e.offsetY,
 					})
 				)
-			}
-
-			window.onmouseenter = (e) => {
-				console.log(e)
 			}
 
 			window.onmousemove = (e) => {
