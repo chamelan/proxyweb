@@ -2,9 +2,9 @@ import { io } from "socket.io-client"
 import { useEffect } from "react"
 import { useState } from "react"
 
-const home = () => {
+const Home = () => {
 	let socket
-	const [page, setPage] = useState()
+	const [page, setPage] = useState("")
 
 	useEffect(async () => {
 		await fetch("/api/proxy")
@@ -95,4 +95,4 @@ const home = () => {
 	}
 }
 
-export default home
+export default Home
