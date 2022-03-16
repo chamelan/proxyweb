@@ -1,5 +1,5 @@
-import { Server } from "Socket.IO"
-const puppeteer = require("puppeteer")
+import { Server } from "socket.io"
+import playwright from "playwright"
 const { installMouseHelper } = require("./mousehelper")
 
 function makeid(length) {
@@ -55,12 +55,19 @@ async function resizeWindow(browser, page, width, height) {
 }
 
 const SocketHandler = async (req, res) => {
+	const browser = await playwright.chromium.launch()
+	const page = await browser.newPage()
+	await page.goto("https://www.google.com/")
+
+	let img = (await page.screenshot()).toString("base64")
+	console.log(`data:image/jpg;base64,${Buffer.from(img)}`)
+
 	if (!res.socket.server.io) {
 		const io = new Server(res.socket.server)
 		res.socket.server.io = io
 
 		io.on("connection", async (socket) => {
-			const browser = await puppeteer.launch()
+			const browser = await playwright.chromium.launch()
 			const page = await browser.newPage()
 
 			await installMouseHelper(page)

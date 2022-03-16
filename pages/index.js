@@ -1,4 +1,4 @@
-import { io } from "Socket.IO-client"
+import { io } from "socket.io-client"
 import { useEffect } from "react"
 import { useState } from "react"
 
@@ -69,7 +69,7 @@ const Home = () => {
 		})
 	}, [])
 
-	if (page !== undefined) {
+	if (page !== "") {
 		return (
 			<>
 				<img src={page} />
