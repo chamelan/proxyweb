@@ -1,6 +1,8 @@
 import { Server } from "socket.io"
-import playwright from "playwright"
 const { installMouseHelper } = require("./mousehelper")
+const puppeteer = require("puppeteer-extra")
+const StealthPlugin = require("puppeteer-extra-plugin-stealth")
+puppeteer.use(StealthPlugin())
 
 function makeid(length) {
 	var result = ""
@@ -55,24 +57,52 @@ async function resizeWindow(browser, page, width, height) {
 }
 
 const SocketHandler = async (req, res) => {
-	const browser = await playwright.chromium.launch()
-	const page = await browser.newPage()
-	await page.goto("https://www.google.com/")
-
-	let img = (await page.screenshot()).toString("base64")
-	console.log(`data:image/jpg;base64,${Buffer.from(img)}`)
-
 	if (!res.socket.server.io) {
 		const io = new Server(res.socket.server)
 		res.socket.server.io = io
 
 		io.on("connection", async (socket) => {
-			const browser = await playwright.chromium.launch()
-			const page = await browser.newPage()
+			let gotInfo = false
+			let userAgent
+			let windowX
+			let windowY
 
+			socket.emit("getinfo")
+
+			let timeOut = setTimeout(() => {
+				if (!gotInfo) {
+					socket.disconnect(true)
+					clearInterval(timeOut)
+				}
+			}, 10000)
+
+			socket.on("info", async (e) => {
+				gotInfo = true
+				userAgent = e.userAgent
+				windowX = e.windowX
+				windowY = e.windowY
+			})
+
+			const browser = await puppeteer.launch()
+			const page = await browser.newPage()
+			await resizeWindow(browser, page, windowX, windowY)
+			await page.setUserAgent(userAgent)
+			const client = await page.target().createCDPSession()
+
+			const getData = async () => {
+				return page.evaluate(async () => {
+					return await new Promise((resolve) => {
+						resolve("")
+					})
+				})
+			}
+
+			//just for developmental purposes
 			await installMouseHelper(page)
 
 			await page.goto("https://www.google.com/")
+
+			console.log(await getData())
 
 			let keys = [
 				"Enter",
@@ -87,19 +117,25 @@ const SocketHandler = async (req, res) => {
 				"ArrowRight",
 			]
 
-			const sendImage = async () => {
-				socket.emit("pageimg", (await page.screenshot()).toString("base64"))
-			}
+			await client.send("Page.startScreencast", {
+				format: "jpeg",
+				maxWidth: 1920,
+				maxHeight: 1080,
+				quality: 100,
+				everyNthFrame: 2,
+			})
 
-			let interval = setInterval(() => {
-				sendImage()
-			}, 1000)
+			client.on("Page.screencastFrame", async (frameObject) => {
+				socket.emit("pageimg", frameObject.data)
+				await client.send("Page.screencastFrameAck", {
+					sessionId: frameObject.sessionId,
+				})
+			})
 
 			socket.on("windowsize", async (e) => {
-				let parsed = JSON.parse(e)
-				let x = parsed.x
-				let y = parsed.y
-				await resizeWindow(browser, page, x, y)
+				windowX = e.x
+				windowY = e.y
+				await resizeWindow(browser, page, windowX, windowY)
 			})
 
 			socket.on("keystroke", async (e) => {
@@ -111,18 +147,21 @@ const SocketHandler = async (req, res) => {
 			})
 
 			socket.on("click", async (e) => {
-				let parsed = JSON.parse(e)
-				await page.mouse.click(parsed.x, parsed.y)
+				await page.mouse.click(e.x, e.y)
 			})
 
 			socket.on("move", async (e) => {
-				let parsed = JSON.parse(e)
-				await page.mouse.move(parsed.x, parsed.y)
+				await page.mouse.move(e.x, e.y)
 			})
 
 			socket.on("back", async (e) => {
-				console.log("yoo")
 				await page.goBack()
+			})
+
+			socket.on("wheel", async (e) => {
+				await page.evaluate(async (e) => {
+					window.scrollBy(0, e.y)
+				}, e)
 			})
 
 			socket.on("forward", async (e) => {
@@ -130,7 +169,6 @@ const SocketHandler = async (req, res) => {
 			})
 
 			socket.on("disconnect", async () => {
-				clearInterval(interval)
 				await browser.close()
 			})
 		})

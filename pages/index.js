@@ -1,25 +1,27 @@
 import { io } from "socket.io-client"
 import { useEffect } from "react"
 import { useState } from "react"
+import styles from "../styles/main.module.css"
 
-const Home = () => {
+const Home = ({ headers }) => {
 	let socket
 	const [page, setPage] = useState("")
 
 	useEffect(async () => {
 		await fetch("/api/proxy")
 
+		document.onkeydown = () => {
+			return false
+		}
+
 		socket = io()
 
 		socket.on("connect", () => {
 			window.onresize = (e) => {
-				socket.emit(
-					"windowsize",
-					JSON.stringify({
-						x: window.innerWidth,
-						y: window.innerHeight,
-					})
-				)
+				socket.emit("windowsize", {
+					x: window.innerWidth,
+					y: Math.round(window.innerHeight * 0.9),
+				})
 			}
 
 			document.getElementsByTagName("body")[0].onkeyup = (e) => {
@@ -27,31 +29,25 @@ const Home = () => {
 			}
 
 			window.onclick = (e) => {
-				socket.emit(
-					"click",
-					JSON.stringify({
-						x: e.offsetX,
-						y: e.offsetY,
-					})
-				)
+				socket.emit("click", {
+					x: e.offsetX,
+					y: e.offsetY,
+				})
+			}
+
+			window.onwheel = (e) => {
+				socket.emit("wheel", {
+					y: e.deltaY,
+				})
 			}
 
 			window.onmousemove = (e) => {
-				socket.emit(
-					"windowsize",
-					JSON.stringify({
-						x: window.innerWidth,
-						y: window.innerHeight,
-					})
-				)
-
-				socket.emit(
-					"move",
-					JSON.stringify({
+				if (e.pageY > window.innerHeight * 0.1) {
+					socket.emit("move", {
 						x: e.offsetX,
 						y: e.offsetY,
 					})
-				)
+				}
 			}
 		})
 
@@ -67,12 +63,23 @@ const Home = () => {
 			img.src = `data:image/jpg;base64,${Buffer.from(e)}`
 			setPage(img.src)
 		})
+
+		socket.on("getinfo", () => {
+			socket.emit("info", {
+				userAgent: headers["user-agent"],
+				windowX: window.innerWidth,
+				windowY: Math.round(window.innerHeight * 0.9),
+			})
+		})
 	}, [])
 
 	if (page !== "") {
 		return (
 			<>
-				<img src={page} />
+				<div className={styles["overfill"]}></div>
+				<div className={styles["pagecontainer"]}>
+					<img src={page} className={styles["page"]} />
+				</div>
 				<a id="back">back</a>
 				<span id="forward">forward</span>
 			</>
@@ -82,12 +89,17 @@ const Home = () => {
 			<>
 				<br></br>
 				loading...
-				<br></br>
-				Use arrow keys to scroll down/up
 				<a id="back">back</a>
 				<span id="forward">forward</span>
 			</>
 		)
+	}
+}
+
+export const getServerSideProps = (context) => {
+	let headers = context.req.headers
+	return {
+		props: { headers },
 	}
 }
 

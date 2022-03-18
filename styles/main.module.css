@@ -1,0 +1,10 @@
+.pagecontainer {
+	position: fixed;
+	width: 100%;
+	height: 90%;
+	bottom: 0;
+}
+
+.page {
+	pointer-events: none;
+}
