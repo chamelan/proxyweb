@@ -2,19 +2,28 @@ import { io } from "socket.io-client"
 import { useEffect } from "react"
 import { useState } from "react"
 import styles from "../styles/main.module.css"
+import Rotate from "../public/rotate.svg"
+import Back from "../public/back.svg"
+import Forward from "../public/forward.svg"
 
 const Home = ({ headers }) => {
-	let socket
+	const [socket, setSocket] = useState("")
 	const [page, setPage] = useState("")
+	const [url, setUrl] = useState("https://www.google.com/")
 
 	useEffect(async () => {
 		await fetch("/api/proxy")
 
-		document.onkeydown = () => {
-			return false
+		document.onkeydown = (e) => {
+			if (styles["url"] !== e.target.className) {
+			}
 		}
 
-		socket = io()
+		let socket = io({
+			transports: ["websocket"],
+			path: "/api/proxy",
+		})
+		setSocket(socket)
 
 		socket.on("connect", () => {
 			window.onresize = (e) => {
@@ -24,21 +33,14 @@ const Home = ({ headers }) => {
 				})
 			}
 
-			document.getElementsByTagName("body")[0].onkeyup = (e) => {
-				socket.emit("keystroke", e.key)
-			}
-
-			window.onclick = (e) => {
-				socket.emit("click", {
-					x: e.offsetX,
-					y: e.offsetY,
-				})
-			}
-
 			window.onwheel = (e) => {
 				socket.emit("wheel", {
 					y: e.deltaY,
 				})
+			}
+
+			window.onmousedown = () => {
+				socket.emit("mousedown", true)
 			}
 
 			window.onmousemove = (e) => {
@@ -49,14 +51,11 @@ const Home = ({ headers }) => {
 					})
 				}
 			}
-		})
 
-		document.getElementById("forward").onclick = () => {
-			socket.emit("forward", "1")
-		}
-		document.getElementById("back").onclick = () => {
-			socket.emit("back", "1")
-		}
+			window.onmouseup = (e) => {
+				socket.emit("mousedown", false)
+			}
+		})
 
 		socket.on("pageimg", (e) => {
 			const img = new Image()
@@ -71,6 +70,22 @@ const Home = ({ headers }) => {
 				windowY: Math.round(window.innerHeight * 0.9),
 			})
 		})
+
+		let clipboard = ""
+		socket.on("clipboard", (e) => {
+			try {
+				if (e !== clipboard) {
+					navigator.clipboard.writeText(e)
+					clipboard = e
+				}
+			} catch {}
+		})
+
+		socket.on("url", (e) => {
+			try {
+				setUrl(e)
+			} catch {}
+		})
 	}, [])
 
 	if (page !== "") {
@@ -78,21 +93,66 @@ const Home = ({ headers }) => {
 			<>
 				<div className={styles["overfill"]}></div>
 				<div className={styles["pagecontainer"]}>
-					<img src={page} className={styles["page"]} />
+					<div
+						className={styles["cover"]}
+						onContextMenu={(e) => {
+							e.preventDefault()
+						}}
+					/>
+					<img
+						id="page"
+						src={page}
+						className={styles["page"]}
+						onKeyUp={(e) => {
+							socket.emit("keyup", e.key)
+						}}
+						onKeyDown={(e) => {
+							socket.emit("keydown", e.key)
+						}}
+					/>
 				</div>
-				<a id="back">back</a>
-				<span id="forward">forward</span>
+				<div className={styles["container"]}>
+					<div className={styles["tabs"]}></div>
+					<div className={styles["options"]}>
+						<Back
+							className={styles["back"]}
+							onClick={() => {
+								socket.emit("back", "1")
+							}}
+						/>
+						<Forward
+							className={styles["forward"]}
+							onClick={() => {
+								socket.emit("forward", "1")
+							}}
+						/>
+						<Rotate
+							className={styles["rotate"]}
+							onClick={() => {
+								socket.emit("refresh", "1")
+							}}
+						/>
+						<form
+							onSubmit={(e) => {
+								e.preventDefault()
+								socket.emit("url", e.target.url.value)
+							}}>
+							<input
+								type="text"
+								name="url"
+								value={url}
+								className={styles["url"]}
+								onChange={(e) => {
+									setUrl(e.target.value)
+								}}
+							/>
+						</form>
+					</div>
+				</div>
 			</>
 		)
 	} else {
-		return (
-			<>
-				<br></br>
-				loading...
-				<a id="back">back</a>
-				<span id="forward">forward</span>
-			</>
-		)
+		return <>loading...</>
 	}
 }
 

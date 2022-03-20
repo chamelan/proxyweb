@@ -5,10 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 4000",
     "lint": "next lint"
   },
   "dependencies": {
+    "@svgr/webpack": "^6.2.1",
+    "install": "^0.13.0",
     "next": "12.1.0",
     "puppeteer": "^13.5.1",
     "puppeteer-extra": "^3.2.3",
