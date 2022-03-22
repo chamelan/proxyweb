@@ -2,7 +2,6 @@ import { Server } from "socket.io"
 const { installMouseHelper } = require("./mousehelper")
 const puppeteer = require("puppeteer-extra")
 const StealthPlugin = require("puppeteer-extra-plugin-stealth")
-puppeteer.use(StealthPlugin())
 
 function makeid(length) {
 	var result = ""
@@ -112,7 +111,6 @@ const SocketHandler = async (req, res) => {
 						"--disable-accelerated-video-decode",
 						"--disable-accelerated-video-encode",
 						"--disable-setuid-sandbox",
-						"--netifs-to-ignore=eth0",
 					],
 				})
 				const page = await browser.newPage()
@@ -291,6 +289,8 @@ const SocketHandler = async (req, res) => {
 				})
 
 				socket.on("keyup", async (e) => {
+					await page.waitForNavigation()
+
 					await context.overridePermissions(await page.url(), [
 						"clipboard-read",
 					])
@@ -339,7 +339,7 @@ const SocketHandler = async (req, res) => {
 				socket.on("url", async (e) => {
 					try {
 						if (CheckIsValidDomain(e)) {
-							page.goto(e)
+							await page.goto(e)
 						}
 					} catch {}
 				})

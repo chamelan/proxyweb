@@ -26,6 +26,19 @@ const Home = ({ headers }) => {
 		setSocket(socket)
 
 		socket.on("connect", () => {
+			let mousepos = false
+			window.onkeydown = (e) => {
+				if (mousepos) {
+					socket.emit("keydown", e.key)
+				}
+			}
+
+			window.onkeyup = (e) => {
+				if (mousepos) {
+					socket.emit("keyup", e.key)
+				}
+			}
+
 			window.onresize = (e) => {
 				socket.emit("windowsize", {
 					x: window.innerWidth,
@@ -45,10 +58,13 @@ const Home = ({ headers }) => {
 
 			window.onmousemove = (e) => {
 				if (e.pageY > window.innerHeight * 0.1) {
+					mousepos = true
 					socket.emit("move", {
 						x: e.offsetX,
 						y: e.offsetY,
 					})
+				} else {
+					mousepos = false
 				}
 			}
 
@@ -99,20 +115,10 @@ const Home = ({ headers }) => {
 							e.preventDefault()
 						}}
 					/>
-					<img
-						id="page"
-						src={page}
-						className={styles["page"]}
-						onKeyUp={(e) => {
-							socket.emit("keyup", e.key)
-						}}
-						onKeyDown={(e) => {
-							socket.emit("keydown", e.key)
-						}}
-					/>
+					<img id="page" src={page} className={styles["page"]} />
 				</div>
 				<div className={styles["container"]}>
-					<div className={styles["tabs"]}></div>
+					<div className={styles["tabs"]}>aa</div>
 					<div className={styles["options"]}>
 						<Back
 							className={styles["back"]}
